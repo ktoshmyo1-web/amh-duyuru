@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f766e" />
+    <title>AMH Öğrenci Portalı</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>AMH Öğrenci Portalı</h1>
+        <p>KTO Karatay Üniversitesi</p>
+        <p>SHMYO / Ameliyathane Hizmetleri</p>
+      </div>
+      <div class="top-actions">
+        <button id="profileBtn" class="ghost hidden" type="button">Profilim</button>
+        <button id="logoutBtn" class="ghost hidden" type="button">Çıkış</button>
+      </div>
+    </header>
+
+    <main class="shell">
+      <section id="updateNotice" class="notice hidden">
+        Yeni sürüm hazır. <button id="reloadAppBtn" type="button">Güncelle</button>
+      </section>
+      <section id="systemNotice" class="notice hidden"></section>
+
+      <section id="authView" class="panel auth-panel">
+        <div class="tabs auth-tabs">
+          <button id="loginTab" class="tab active" type="button">Öğrenci Girişi</button>
+          <button id="registerTab" class="tab" type="button">İlk Başvuru</button>
+          <button id="adminTab" class="tab" type="button">Yönetici Girişi</button>
+        </div>
+
+        <form id="loginForm" class="form">
+          <h2>Öğrenci Girişi</h2>
+          <label>Okul No <input id="loginSchoolNo" inputmode="numeric" autocomplete="username" required /></label>
+          <label>4 Haneli Şifre <input id="loginPin" inputmode="numeric" maxlength="4" autocomplete="current-password" /></label>
+          <button class="primary" type="submit">Giriş Yap</button>
+          <button id="forgotPasswordBtn" class="secondary" type="button">Şifremi Unuttum</button>
+          <p class="muted">Bu cihazda oturum açık kaldığı sürece yeniden şifre istenmez.</p>
+        </form>
+
+        <form id="registerForm" class="form hidden">
+          <h2>İlk Başvuru</h2>
+          <label>İsim <input id="firstName" autocomplete="given-name" required /></label>
+          <label>Soyisim <input id="lastName" autocomplete="family-name" required /></label>
+          <label>Okul No <input id="schoolNo" inputmode="numeric" required /></label>
+          <label>Sınıf
+            <select id="classYear" required>
+              <option value="">Seçiniz</option>
+              <option value="1. sınıf">1. sınıf</option>
+              <option value="2. sınıf">2. sınıf</option>
+            </select>
+          </label>
+          <label>4 Haneli Rakamsal Şifre <input id="pin" inputmode="numeric" maxlength="4" autocomplete="new-password" required /></label>
+          <button class="primary" type="submit">Başvuru Gönder</button>
+        </form>
+
+        <form id="adminLoginForm" class="form hidden">
+          <h2>Yönetici Girişi</h2>
+          <label>Yönetici Şifresi <input id="adminPass" type="password" autocomplete="current-password" required /></label>
+          <button class="primary" type="submit">Yönetici Paneline Gir</button>
+          <p class="muted">Bu alan sadece yetkili kullanıcılar içindir.</p>
+        </form>
+      </section>
+
+      <section id="studentView" class="student-layout hidden">
+        <aside class="panel student-summary">
+          <h2 id="studentTitle">Hoş geldin</h2>
+          <p id="studentStatus" class="muted"></p>
+          <button id="enableNotificationsBtn" class="secondary full" type="button">Bildirimleri Aç</button>
+        </aside>
+
+        <section class="panel">
+          <h2>Duyurular</h2>
+          <div id="studentAnnouncements" class="list"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Yönetici ile Mesajlaşma</h2>
+          <div id="studentMessages" class="chat"></div>
+          <form id="studentMessageForm" class="message-compose">
+            <textarea id="studentMessageBody" rows="2" placeholder="Mesaj yaz..." required></textarea>
+            <button class="primary" type="submit">Gönder</button>
+          </form>
+        </section>
+      </section>
+
+      <section id="adminView" class="admin-layout hidden">
+        <nav class="panel admin-tabs">
+          <button class="admin-tab active" data-admin-tab="students" type="button">Öğrenciler <span id="pendingBadge" class="badge hidden">0</span></button>
+          <button class="admin-tab" data-admin-tab="announcements" type="button">Duyurular</button>
+          <button class="admin-tab" data-admin-tab="messages" type="button">Mesajlar <span id="messageBadge" class="badge hidden">0</span></button>
+          <button class="admin-tab" data-admin-tab="reports" type="button">Raporlar</button>
+          <button class="admin-tab" data-admin-tab="settings" type="button">Ayarlar</button>
+        </nav>
+
+        <section id="adminStudents" class="admin-section">
+          <div class="section-header">
+            <div>
+              <h2>Öğrenciler</h2>
+              <p class="muted">Onay bekleyenleri yönet, onaylı öğrencileri düzenle veya sil.</p>
+            </div>
+            <div class="segmented">
+              <button class="active" data-student-filter="pending" type="button">Onay Bekleyen</button>
+              <button data-student-filter="approved" type="button">Onaylı</button>
+              <button data-student-filter="blocked" type="button">Pasif</button>
+            </div>
+          </div>
+          <div id="studentsList" class="list"></div>
+        </section>
+
+        <section id="adminAnnouncements" class="admin-section hidden">
+          <div class="section-header">
+            <div>
+              <h2>Duyurular</h2>
+              <p class="muted">Duyuru oluştur, düzenle, sil ve okunma durumunu takip et.</p>
+            </div>
+            <button id="newAnnouncementBtn" class="primary" type="button">Yeni Duyuru</button>
+          </div>
+          <div id="announcementsAdminList" class="list"></div>
+        </section>
+
+        <section id="adminMessages" class="admin-section hidden">
+          <div class="section-header">
+            <div>
+              <h2>Mesajlar</h2>
+              <p class="muted">Yeni mesajlar konuşma kutusuna düşer. Cevap verince konuşma devam eder.</p>
+            </div>
+          </div>
+          <div class="message-board">
+            <div>
+              <h3>Konuşmalar</h3>
+              <div id="conversationList" class="list compact-list"></div>
+            </div>
+            <div class="panel chat-panel">
+              <h3 id="conversationTitle">Konuşma seç</h3>
+              <div id="adminConversationMessages" class="chat"></div>
+              <form id="adminReplyForm" class="message-compose hidden">
+                <textarea id="adminReplyBody" rows="2" placeholder="Cevap yaz..." required></textarea>
+                <button class="primary" type="submit">Gönder</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section id="adminReports" class="admin-section hidden">
+          <div class="section-header">
+            <div>
+              <h2>Raporlar</h2>
+              <p class="muted">Okunma istatistikleri, mesajlar ve işlem kayıtları.</p>
+            </div>
+            <button id="exportReportBtn" class="secondary" type="button">Word Raporu Al</button>
+          </div>
+          <div class="report-grid">
+            <div class="panel"><h3>Duyuru İstatistikleri</h3><div id="announcementStats" class="list"></div></div>
+            <div class="panel"><h3>İşlem Kayıtları</h3><div id="auditLogs" class="list"></div></div>
+          </div>
+        </section>
+
+        <section id="adminSettings" class="admin-section hidden">
+          <div class="section-header">
+            <div>
+              <h2>Ayarlar</h2>
+              <p class="muted">Yönetici şifresi ve şifre sıfırlama talepleri.</p>
+            </div>
+          </div>
+          <div class="settings-grid">
+            <form id="adminPasswordForm" class="panel form">
+              <h3>Yönetici Şifresi</h3>
+              <label>Yeni Şifre <input id="adminNewPassword" type="password" minlength="4" required /></label>
+              <button class="primary" type="submit">Kaydet</button>
+            </form>
+            <div class="panel">
+              <h3>Şifre Sıfırlama Talepleri</h3>
+              <div id="passwordRequestsList" class="list"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <div id="modalBackdrop" class="modal-backdrop hidden">
+      <section class="modal" role="dialog" aria-modal="true">
+        <button id="modalCloseBtn" class="modal-close" type="button">Kapat</button>
+        <div id="modalContent"></div>
+      </section>
+    </div>
+
+    <div id="toast" class="toast hidden" role="status"></div>
+    <script type="module" src="app.js?v=20260625-clean-1"></script>
+  </body>
+</html>

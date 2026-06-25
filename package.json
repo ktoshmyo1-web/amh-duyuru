@@ -1,0 +1,11 @@
+{
+  "name": "amh-ogrenci-portali",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "send-notifications": "node scripts/send-notifications.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.4.0"
+  }
+}
