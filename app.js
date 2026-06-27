@@ -1,6 +1,6 @@
 import { firebaseConfig, webPushPublicKey } from "./firebase-config.js";
 
-const APP_VERSION = "20260627-maintenance-1";
+const APP_VERSION = "20260627-enhancements-1";
 const DEFAULT_ADMIN_PASSWORD = "135746";
 const RESET_PIN = "1234";
 const STUDENT_SESSION_KEY = "amh_v2_student_session";
@@ -21,6 +21,7 @@ const state = {
   readReceipts: [],
   passwordRequests: [],
   auditLogs: [],
+  infoCards: [],
   unsubscribers: []
 };
 
@@ -55,10 +56,9 @@ const els = {
   studentStatus: $("#studentStatus"),
   enableNotificationsBtn: $("#enableNotificationsBtn"),
   studentAnnouncements: $("#studentAnnouncements"),
-  studentMessages: $("#studentMessages"),
-  studentMessageForm: $("#studentMessageForm"),
-  studentMessageBody: $("#studentMessageBody"),
-  clearStudentMessagesBtn: $("#clearStudentMessagesBtn"),
+  studentInfoCards: $("#studentInfoCards"),
+  openStudentMessagesBtn: $("#openStudentMessagesBtn"),
+  studentMessageBadge: $("#studentMessageBadge"),
   pendingBadge: $("#pendingBadge"),
   messageBadge: $("#messageBadge"),
   studentsList: $("#studentsList"),
@@ -78,6 +78,8 @@ const els = {
   adminPasswordForm: $("#adminPasswordForm"),
   adminNewPassword: $("#adminNewPassword"),
   passwordRequestsList: $("#passwordRequestsList"),
+  newInfoCardBtn: $("#newInfoCardBtn"),
+  infoCardsAdminList: $("#infoCardsAdminList"),
   modalBackdrop: $("#modalBackdrop"),
   modalCloseBtn: $("#modalCloseBtn"),
   modalContent: $("#modalContent"),
@@ -129,8 +131,7 @@ function bindEvents() {
   els.logoutBtn.addEventListener("click", logout);
   els.profileBtn.addEventListener("click", openProfileModal);
   els.enableNotificationsBtn.addEventListener("click", enableNotifications);
-  els.studentMessageForm.addEventListener("submit", handleStudentMessage);
-  els.clearStudentMessagesBtn?.addEventListener("click", clearStudentMessages);
+  els.openStudentMessagesBtn?.addEventListener("click", openStudentMessagesModal);
   els.newAnnouncementBtn.addEventListener("click", () => openAnnouncementEditor());
   els.adminReplyForm.addEventListener("submit", handleAdminReply);
   els.clearAdminConversationBtn?.addEventListener("click", clearAdminConversation);
@@ -138,6 +139,7 @@ function bindEvents() {
   els.clearAnnouncementStatsBtn?.addEventListener("click", clearAnnouncementStats);
   els.clearAuditLogsBtn?.addEventListener("click", clearAuditLogs);
   els.adminPasswordForm.addEventListener("submit", handleAdminPasswordChange);
+  els.newInfoCardBtn?.addEventListener("click", () => openInfoCardEditor());
   els.modalCloseBtn.addEventListener("click", closeModal);
   els.modalBackdrop.addEventListener("click", (event) => {
     if (event.target === els.modalBackdrop) closeModal();
@@ -236,6 +238,10 @@ async function openStudentSession(schoolNo, silent = false) {
     state.messages = items.sort(byDateAsc);
     renderStudentMessages();
   });
+  watch("infoCards", (items) => {
+    state.infoCards = items.sort(byOrder);
+    renderStudentInfoCards();
+  });
 }
 
 async function handleAdminLogin(event) {
@@ -262,6 +268,7 @@ function openAdminPanel() {
   watch("readReceipts", (items) => { state.readReceipts = items; renderAdminAll(); });
   watch("passwordRequests", (items) => { state.passwordRequests = items.sort(byDateDesc); renderAdminAll(); });
   watch("auditLogs", (items) => { state.auditLogs = items.sort(byDateDesc); renderAdminAll(); });
+  watch("infoCards", (items) => { state.infoCards = items.sort(byOrder); renderAdminAll(); });
 }
 
 function renderAdminAll() {
@@ -272,6 +279,7 @@ function renderAdminAll() {
   renderConversationMessages();
   renderPasswordRequests();
   renderReports();
+  renderInfoCardsAdmin();
 }
 
 function switchAdminTab(tab) {
@@ -380,23 +388,25 @@ function renderStudentAnnouncements() {
 }
 
 function renderAdminAnnouncements() {
-  renderList(els.announcementsAdminList, state.announcements, "Henüz duyuru yok.", (item) => {
+  renderList(els.announcementsAdminList, state.announcements, "Henuz duyuru yok.", (item) => {
     const readCount = state.readReceipts.filter((receipt) => receipt.announcementId === item.id).length;
     const eligible = eligibleStudentsFor(item).length;
+    const unread = Math.max(eligible - readCount, 0);
     return `
       <article class="item">
         <div class="item-header"><h3>${escapeHtml(item.title)}</h3><small>${formatDate(item.createdAt)}</small></div>
         <p>${escapeHtml(item.body)}</p>
-        <p class="muted">Hedef: ${labelTarget(item.targetClass)} | Okundu: ${readCount}/${eligible} | Push: ${item.pushSent ? "Gönderildi" : "Bekliyor"}</p>
+        <p class="muted">Hedef: ${labelTarget(item.targetClass)} | Okundu: ${readCount}/${eligible} | Push: ${item.pushSent ? "Gonderildi" : "Bekliyor"}</p>
         <div class="actions">
-          <button class="secondary" data-announcement-action="edit" data-id="${escapeHtml(item.id)}">Düzenle</button>
+          <button class="secondary" data-announcement-action="remind" data-id="${escapeHtml(item.id)}">Okumayanlara Bildir (${unread})</button>
+          <button class="secondary" data-announcement-action="edit" data-id="${escapeHtml(item.id)}">Duzenle</button>
           <button class="danger" data-announcement-action="delete" data-id="${escapeHtml(item.id)}">Sil</button>
         </div>
       </article>
     `;
   });
-  $$("[data-announcement-action]").forEach((button) => {
-    button.addEventListener("click", () => handleAnnouncementAction(button.dataset.announcementAction, button.dataset.id));
+  $('[data-announcement-action]').forEach((button) => {
+    button.addEventListener('click', () => handleAnnouncementAction(button.dataset.announcementAction, button.dataset.id));
   });
 }
 
@@ -442,12 +452,33 @@ async function handleAnnouncementAction(action, id) {
   const item = state.announcements.find((announcement) => announcement.id === id);
   if (!item) return;
   if (action === "edit") return openAnnouncementEditor(item);
+  if (action === "remind") return remindUnreadStudents(item);
   if (action === "delete") {
     if (!confirm("Duyuru silinsin mi?")) return;
     await deleteDoc("announcements", id);
     await addAudit("Duyuru silindi", "admin", "Yönetici", item.title);
     toast("Duyuru silindi.");
   }
+}
+
+
+async function remindUnreadStudents(item) {
+  const eligible = eligibleStudentsFor(item);
+  const readSchoolNos = new Set(state.readReceipts.filter((receipt) => receipt.announcementId === item.id).map((receipt) => receipt.schoolNo));
+  const unreadStudents = eligible.filter((student) => !readSchoolNos.has(student.schoolNo));
+  if (!unreadStudents.length) return toast("Bu duyuruyu okumayan ogrenci yok.");
+  if (!confirm(unreadStudents.length + " ogrenciye tekrar bildirim gonderilsin mi?")) return;
+  await addDoc("pushJobs", {
+    type: "announcementReminder",
+    status: "pending",
+    announcementId: item.id,
+    title: "Hatirlatma: " + item.title,
+    body: item.body,
+    targetSchoolNos: unreadStudents.map((student) => student.schoolNo),
+    createdAt: Date.now()
+  });
+  await addAudit("Okumayanlara tekrar bildirim istendi", "admin", "Yonetici", item.title + " | " + unreadStudents.length + " ogrenci");
+  toast("Tekrar bildirim siraya alindi.");
 }
 
 function openAnnouncementReader(id) {
@@ -482,7 +513,8 @@ async function markRead(item) {
 
 async function handleStudentMessage(event) {
   event.preventDefault();
-  const body = clean(els.studentMessageBody.value);
+  const input = $("#studentMessageBody");
+  const body = clean(input?.value || "");
   if (!body) return;
   const student = state.currentStudent;
   await addDoc("messages", {
@@ -495,15 +527,43 @@ async function handleStudentMessage(event) {
     readByStudent: true,
     createdAt: Date.now()
   });
-  await addAudit("Mesaj gönderildi", student.schoolNo, fullName(student), body);
-  els.studentMessageBody.value = "";
-  toast("Mesaj gönderildi.");
+  await addAudit("Mesaj gonderildi", student.schoolNo, fullName(student), body);
+  if (input) input.value = "";
+  renderStudentMessages();
+  toast("Mesaj gonderildi.");
+}
+
+async function openStudentMessagesModal() {
+  if (!state.currentStudent) return;
+  const student = state.currentStudent;
+  const unreadAdmin = state.messages.filter((message) => message.conversationId === student.schoolNo && message.sender === "admin" && !message.readByStudent);
+  await Promise.all(unreadAdmin.map((message) => updateDoc("messages", message.id, { readByStudent: true })));
+  const items = state.messages.filter((message) => message.conversationId === student.schoolNo);
+  openModal(`
+    <h2>Yonetici ile Mesajlasma</h2>
+    <div id="studentMessages" class="chat">${renderChatHtml(items)}</div>
+    <form id="studentMessageForm" class="message-compose">
+      <textarea id="studentMessageBody" rows="3" placeholder="Mesaj yaz..." required></textarea>
+      <button class="primary" type="submit">Gonder</button>
+    </form>
+    <button id="clearStudentMessagesBtn" class="danger full" type="button">Mesajlari Sil</button>
+  `);
+  $("#studentMessageForm").addEventListener("submit", handleStudentMessage);
+  $("#clearStudentMessagesBtn").addEventListener("click", clearStudentMessages);
+  renderStudentMessages();
 }
 
 function renderStudentMessages() {
   const student = state.currentStudent;
+  if (!student) return;
   const items = state.messages.filter((message) => message.conversationId === student.schoolNo);
-  renderChat(els.studentMessages, items);
+  const unread = items.filter((message) => message.sender === "admin" && !message.readByStudent).length;
+  setBadge(els.studentMessageBadge, unread);
+  const modalChat = $("#studentMessages");
+  if (modalChat) {
+    modalChat.innerHTML = renderChatHtml(items);
+    modalChat.scrollTop = modalChat.scrollHeight;
+  }
 }
 
 function renderConversations() {
@@ -570,14 +630,18 @@ async function handleAdminReply(event) {
 }
 
 function renderChat(container, items) {
-  container.innerHTML = items.length ? items.map((message) => `
+  container.innerHTML = renderChatHtml(items);
+  container.scrollTop = container.scrollHeight;
+}
+
+function renderChatHtml(items) {
+  return items.length ? items.map((message) => `
     <div class="bubble ${message.sender === "admin" ? "admin" : "student"}">
-      <strong>${message.sender === "admin" ? "Yönetici" : escapeHtml(message.studentName)}</strong>
+      <strong>${message.sender === "admin" ? "Yonetici" : escapeHtml(message.studentName)}</strong>
       <p>${escapeHtml(message.body)}</p>
       <small>${formatDate(message.createdAt)}</small>
     </div>
   `).join("") : `<p class="empty">Mesaj yok.</p>`;
-  container.scrollTop = container.scrollHeight;
 }
 
 async function clearStudentMessages() {
@@ -587,6 +651,8 @@ async function clearStudentMessages() {
   if (!confirm("Bu konusmadaki tum mesajlar silinsin mi?")) return;
   await deleteMany("messages", items);
   await addAudit("Ogrenci mesajlari sildi", state.currentStudent.schoolNo, fullName(state.currentStudent));
+  renderStudentMessages();
+  closeModal();
   toast("Mesajlar silindi.");
 }
 
@@ -675,6 +741,82 @@ async function clearAuditLogs() {
   if (!confirm("Tum islem kayitlari silinsin mi? Word raporu aldiysan bu liste temizlenir.")) return;
   await deleteMany("auditLogs", state.auditLogs);
   toast("Islem kayitlari silindi.");
+}
+
+
+function renderStudentInfoCards() {
+  if (!els.studentInfoCards) return;
+  const active = state.infoCards.filter((card) => card.active !== false).sort(byOrder);
+  const defaults = [
+    { title: "Duyurulari takip et", body: "Yeni duyurular icin bildirimleri acik tut." },
+    { title: "Okudum isaretle", body: "Duyurunun icine girip Okudum butonuna basmayi unutma." },
+    { title: "Acil durumda ara", body: "Acil Ulas butonu telefon arama ekranini acar." }
+  ];
+  const cards = active.length ? active : defaults;
+  els.studentInfoCards.innerHTML = cards.map((card) => `
+    <article class="info-card">
+      <h3>${escapeHtml(card.title)}</h3>
+      <p>${escapeHtml(card.body)}</p>
+    </article>
+  `).join("");
+}
+
+function renderInfoCardsAdmin() {
+  if (!els.infoCardsAdminList) return;
+  renderList(els.infoCardsAdminList, state.infoCards.sort(byOrder), "Bilgi karti yok.", (card) => `
+    <article class="item">
+      <div class="item-header"><h3>${escapeHtml(card.title)}</h3><small>Sira: ${Number(card.order || 0)}</small></div>
+      <p>${escapeHtml(card.body)}</p>
+      <p class="muted">Durum: ${card.active === false ? "Pasif" : "Aktif"}</p>
+      <div class="actions">
+        <button class="secondary" data-info-card-action="edit" data-id="${escapeHtml(card.id)}">Duzenle</button>
+        <button class="danger" data-info-card-action="delete" data-id="${escapeHtml(card.id)}">Sil</button>
+      </div>
+    </article>
+  `);
+  $('[data-info-card-action]').forEach((button) => {
+    button.addEventListener('click', () => handleInfoCardAction(button.dataset.infoCardAction, button.dataset.id));
+  });
+}
+
+function openInfoCardEditor(card = null) {
+  openModal(`
+    <h2>${card ? "Bilgi Karti Duzenle" : "Yeni Bilgi Karti"}</h2>
+    <form id="infoCardForm" class="form">
+      <label>Baslik <input id="infoCardTitle" value="${escapeHtml(card?.title || "")}" required /></label>
+      <label>Metin <textarea id="infoCardBody" rows="4" required>${escapeHtml(card?.body || "")}</textarea></label>
+      <label>Sira <input id="infoCardOrder" type="number" value="${Number(card?.order || 0)}" /></label>
+      <label><input id="infoCardActive" type="checkbox" ${card?.active === false ? "" : "checked"} /> Aktif</label>
+      <button class="primary" type="submit">Kaydet</button>
+    </form>
+  `);
+  $("#infoCardForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      title: clean($("#infoCardTitle").value),
+      body: clean($("#infoCardBody").value),
+      order: Number($("#infoCardOrder").value || 0),
+      active: $("#infoCardActive").checked,
+      updatedAt: Date.now()
+    };
+    if (card) await updateDoc("infoCards", card.id, payload);
+    else await addDoc("infoCards", { ...payload, createdAt: Date.now() });
+    await addAudit(card ? "Bilgi karti duzenlendi" : "Bilgi karti eklendi", "admin", "Yonetici", payload.title);
+    closeModal();
+    toast("Bilgi karti kaydedildi.");
+  });
+}
+
+async function handleInfoCardAction(action, id) {
+  const card = state.infoCards.find((item) => item.id === id);
+  if (!card) return;
+  if (action === "edit") return openInfoCardEditor(card);
+  if (action === "delete") {
+    if (!confirm("Bilgi karti silinsin mi?")) return;
+    await deleteDoc("infoCards", id);
+    await addAudit("Bilgi karti silindi", "admin", "Yonetici", card.title);
+    toast("Bilgi karti silindi.");
+  }
 }
 
 async function handleAdminPasswordChange(event) {
@@ -934,6 +1076,7 @@ function fullName(student) { return `${student.firstName || ""} ${student.lastNa
 function byDateDesc(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); }
 function byDateAsc(a, b) { return (a.createdAt || 0) - (b.createdAt || 0); }
 function byStudent(a, b) { return fullName(a).localeCompare(fullName(b), "tr"); }
+function byOrder(a, b) { return Number(a.order || 0) - Number(b.order || 0); }
 function labelTarget(value) { return !value || value === "all" ? "Tüm öğrenciler" : value; }
 function formatDate(value) {
   return new Intl.DateTimeFormat("tr-TR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value || Date.now()));

@@ -80,19 +80,12 @@
           <div id="studentAnnouncements" class="list"></div>
         </section>
 
-        <section class="panel">
+        <section class="panel student-contact-panel">
           <div class="section-header compact-header">
-
             <h2>Yonetici ile Mesajlasma</h2>
-
-            <button id="clearStudentMessagesBtn" class="danger small" type="button">Mesajlari Sil</button>
-
+            <button id="openStudentMessagesBtn" class="primary" type="button">Mesaj Yaz <span id="studentMessageBadge" class="badge hidden">0</span></button>
           </div>
-          <div id="studentMessages" class="chat"></div>
-          <form id="studentMessageForm" class="message-compose">
-            <textarea id="studentMessageBody" rows="2" placeholder="Mesaj yaz..." required></textarea>
-            <button class="primary" type="submit">Gönder</button>
-          </form>
+          <div id="studentInfoCards" class="info-strip"></div>
         </section>
       </section>
 
@@ -203,6 +196,14 @@
               <h3>Şifre Sıfırlama Talepleri</h3>
               <div id="passwordRequestsList" class="list"></div>
             </div>
+          
+            <div class="panel">
+              <div class="section-header compact-header">
+                <h3>Bilgi Kartlari</h3>
+                <button id="newInfoCardBtn" class="primary small" type="button">Yeni Kart</button>
+              </div>
+              <div id="infoCardsAdminList" class="list"></div>
+            </div>
           </div>
         </section>
       </section>
@@ -216,6 +217,6 @@
     </div>
 
     <div id="toast" class="toast hidden" role="status"></div>
-    <script type="module" src="app.js?v=20260627-emergency-1"></script>
+    <script type="module" src="app.js?v=20260627-enhancements-1"></script>
   </body>
 </html>
