@@ -1,6 +1,6 @@
 import { firebaseConfig, webPushPublicKey } from "./firebase-config.js";
 
-const APP_VERSION = "20260625-clean-1";
+const APP_VERSION = "20260627-maintenance-1";
 const DEFAULT_ADMIN_PASSWORD = "135746";
 const RESET_PIN = "1234";
 const STUDENT_SESSION_KEY = "amh_v2_student_session";
@@ -58,6 +58,7 @@ const els = {
   studentMessages: $("#studentMessages"),
   studentMessageForm: $("#studentMessageForm"),
   studentMessageBody: $("#studentMessageBody"),
+  clearStudentMessagesBtn: $("#clearStudentMessagesBtn"),
   pendingBadge: $("#pendingBadge"),
   messageBadge: $("#messageBadge"),
   studentsList: $("#studentsList"),
@@ -68,9 +69,12 @@ const els = {
   adminConversationMessages: $("#adminConversationMessages"),
   adminReplyForm: $("#adminReplyForm"),
   adminReplyBody: $("#adminReplyBody"),
+  clearAdminConversationBtn: $("#clearAdminConversationBtn"),
   announcementStats: $("#announcementStats"),
   auditLogs: $("#auditLogs"),
   exportReportBtn: $("#exportReportBtn"),
+  clearAnnouncementStatsBtn: $("#clearAnnouncementStatsBtn"),
+  clearAuditLogsBtn: $("#clearAuditLogsBtn"),
   adminPasswordForm: $("#adminPasswordForm"),
   adminNewPassword: $("#adminNewPassword"),
   passwordRequestsList: $("#passwordRequestsList"),
@@ -126,9 +130,13 @@ function bindEvents() {
   els.profileBtn.addEventListener("click", openProfileModal);
   els.enableNotificationsBtn.addEventListener("click", enableNotifications);
   els.studentMessageForm.addEventListener("submit", handleStudentMessage);
+  els.clearStudentMessagesBtn?.addEventListener("click", clearStudentMessages);
   els.newAnnouncementBtn.addEventListener("click", () => openAnnouncementEditor());
   els.adminReplyForm.addEventListener("submit", handleAdminReply);
+  els.clearAdminConversationBtn?.addEventListener("click", clearAdminConversation);
   els.exportReportBtn.addEventListener("click", exportWordReport);
+  els.clearAnnouncementStatsBtn?.addEventListener("click", clearAnnouncementStats);
+  els.clearAuditLogsBtn?.addEventListener("click", clearAuditLogs);
   els.adminPasswordForm.addEventListener("submit", handleAdminPasswordChange);
   els.modalCloseBtn.addEventListener("click", closeModal);
   els.modalBackdrop.addEventListener("click", (event) => {
@@ -177,7 +185,7 @@ async function handleRegister(event) {
     updatedAt: Date.now()
   };
   if (!student.firstName || !student.lastName || !student.schoolNo || !student.classYear) return toast("Tüm alanları doldur.");
-  if (!isPin(student.pin)) return toast("Şifre 4 haneli rakam olmalı.");
+  if (!isPin(student.pin)) return toast("Sifre en az 4 rakam olmali.");
   if (await getStudent(student.schoolNo)) return toast("Bu okul no ile kayıt zaten var.");
   await setDoc("students", student.schoolNo, student);
   await addAudit("Başvuru oluşturuldu", student.schoolNo, fullName(student));
@@ -190,7 +198,7 @@ async function handleStudentLogin(event) {
   event.preventDefault();
   const schoolNo = digits(els.loginSchoolNo.value);
   const pin = digits(els.loginPin.value);
-  if (!schoolNo || !isPin(pin)) return toast("Okul no ve 4 haneli şifre gerekli.");
+  if (!schoolNo || !isPin(pin)) return toast("Okul no ve en az 4 haneli sifre gerekli.");
   const student = await getStudent(schoolNo);
   if (!student) return toast("Kayıt bulunamadı.");
   if (student.status !== "approved") return toast("Başvurun henüz onaylanmadı.");
@@ -529,6 +537,7 @@ function renderConversationMessages() {
     els.conversationTitle.textContent = "Konuşma seç";
     els.adminConversationMessages.innerHTML = `<p class="empty">Soldan bir konuşma seç.</p>`;
     els.adminReplyForm.classList.add("hidden");
+    els.clearAdminConversationBtn?.classList.add("hidden");
     return;
   }
   const items = state.messages.filter((message) => message.conversationId === id);
@@ -536,6 +545,7 @@ function renderConversationMessages() {
   els.conversationTitle.textContent = student ? fullName(student) : (items[0]?.studentName || id);
   renderChat(els.adminConversationMessages, items);
   els.adminReplyForm.classList.remove("hidden");
+  els.clearAdminConversationBtn?.classList.remove("hidden");
 }
 
 async function handleAdminReply(event) {
@@ -568,6 +578,30 @@ function renderChat(container, items) {
     </div>
   `).join("") : `<p class="empty">Mesaj yok.</p>`;
   container.scrollTop = container.scrollHeight;
+}
+
+async function clearStudentMessages() {
+  if (!state.currentStudent) return;
+  const items = state.messages.filter((message) => message.conversationId === state.currentStudent.schoolNo);
+  if (!items.length) return toast("Silinecek mesaj yok.");
+  if (!confirm("Bu konusmadaki tum mesajlar silinsin mi?")) return;
+  await deleteMany("messages", items);
+  await addAudit("Ogrenci mesajlari sildi", state.currentStudent.schoolNo, fullName(state.currentStudent));
+  toast("Mesajlar silindi.");
+}
+
+async function clearAdminConversation() {
+  const id = state.selectedConversationId;
+  if (!id) return toast("Once konusma sec.");
+  const items = state.messages.filter((message) => message.conversationId === id);
+  if (!items.length) return toast("Silinecek mesaj yok.");
+  if (!confirm("Secili konusmadaki tum mesajlar silinsin mi?")) return;
+  await deleteMany("messages", items);
+  await addAudit("Yonetici konusmayi sildi", id, "Yonetici");
+  state.selectedConversationId = null;
+  renderConversations();
+  renderConversationMessages();
+  toast("Konusma silindi.");
 }
 
 function renderPasswordRequests() {
@@ -627,6 +661,22 @@ function renderReports() {
   `);
 }
 
+async function clearAnnouncementStats() {
+  const count = state.readReceipts.length;
+  if (!count) return toast("Silinecek duyuru istatistigi yok.");
+  if (!confirm("Tum duyuru okundu kayitlari silinsin mi? Duyurular silinmez, sadece istatistik sifirlanir.")) return;
+  await deleteMany("readReceipts", state.readReceipts);
+  await addAudit("Duyuru istatistikleri temizlendi", "admin", "Yonetici", count + " kayit silindi");
+  toast("Duyuru istatistikleri silindi.");
+}
+
+async function clearAuditLogs() {
+  if (!state.auditLogs.length) return toast("Silinecek islem kaydi yok.");
+  if (!confirm("Tum islem kayitlari silinsin mi? Word raporu aldiysan bu liste temizlenir.")) return;
+  await deleteMany("auditLogs", state.auditLogs);
+  toast("Islem kayitlari silindi.");
+}
+
 async function handleAdminPasswordChange(event) {
   event.preventDefault();
   const password = clean(els.adminNewPassword.value);
@@ -650,7 +700,7 @@ function openProfileModal() {
       <label>İsim <input id="profileFirstName" value="${escapeHtml(student.firstName)}" required /></label>
       <label>Soyisim <input id="profileLastName" value="${escapeHtml(student.lastName)}" required /></label>
       <label>Sınıf <select id="profileClassYear" required><option ${student.classYear === "1. sınıf" ? "selected" : ""}>1. sınıf</option><option ${student.classYear === "2. sınıf" ? "selected" : ""}>2. sınıf</option></select></label>
-      <label>Yeni 4 Haneli Şifre <input id="profilePin" inputmode="numeric" maxlength="4" placeholder="Değişmeyecekse boş bırak" /></label>
+      <label>Yeni Sifre <input id="profilePin" inputmode="numeric" minlength="4" placeholder="Degismeyecekse bos birak" /></label>
       <button class="primary" type="submit">Kaydet</button>
     </form>
   `);
@@ -664,7 +714,7 @@ function openProfileModal() {
       mustChangePin: false,
       updatedAt: Date.now()
     };
-    if (pin && !isPin(pin)) return toast("Şifre 4 haneli olmalı.");
+    if (pin && !isPin(pin)) return toast("Sifre en az 4 rakam olmali.");
     if (pin) patch.pin = pin;
     await updateDoc("students", student.schoolNo, patch);
     state.currentStudent = await getStudent(student.schoolNo);
@@ -771,6 +821,10 @@ async function deleteDoc(collectionName, id) {
   await deleteDoc(doc(state.db, collectionName, id));
 }
 
+async function deleteMany(collectionName, items) {
+  await Promise.all(items.map((item) => deleteDoc(collectionName, item.id)));
+}
+
 async function addDoc(collectionName, value) {
   const { collection, addDoc } = state.fs;
   await addDoc(collection(state.db, collectionName), value);
@@ -875,7 +929,7 @@ function toast(message) {
 
 function clean(value) { return String(value || "").trim().replace(/\s+/g, " "); }
 function digits(value) { return String(value || "").replace(/\D/g, ""); }
-function isPin(value) { return /^\d{4}$/.test(value); }
+function isPin(value) { return /^\d{4,}$/.test(value); }
 function fullName(student) { return `${student.firstName || ""} ${student.lastName || ""}`.trim(); }
 function byDateDesc(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); }
 function byDateAsc(a, b) { return (a.createdAt || 0) - (b.createdAt || 0); }

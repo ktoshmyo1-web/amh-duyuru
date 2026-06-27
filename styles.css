@@ -18,6 +18,7 @@ button, input, textarea, select { font: inherit; }
 button { border: 0; border-radius: 8px; padding: 12px 15px; font-weight: 800; cursor: pointer; }
 input, textarea, select { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 12px 13px; color: var(--ink); background: white; }
 textarea { resize: vertical; }
+.small { padding: 8px 10px; font-size: 13px; }
 
 .topbar { min-height: 145px; background: var(--brand); color: white; display: flex; align-items: center; justify-content: center; padding: 26px 18px; text-align: center; position: relative; }
 .topbar h1 { margin: 0 0 8px; font-size: clamp(26px, 4vw, 38px); }
@@ -52,6 +53,8 @@ label { display: grid; gap: 7px; font-weight: 700; color: #344054; }
 .admin-tab { text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .badge { min-width: 24px; height: 24px; padding: 2px 7px; border-radius: 999px; background: var(--danger); color: white; display: inline-grid; place-items: center; font-size: 13px; }
 .section-header { display: flex; align-items: start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.compact-header { align-items: center; margin-bottom: 12px; }
+.compact-header h2, .compact-header h3 { margin: 0; }
 .section-header h2 { margin-bottom: 5px; }
 .segmented { display: flex; flex-wrap: wrap; gap: 8px; }
 

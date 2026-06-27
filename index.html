@@ -37,7 +37,7 @@
         <form id="loginForm" class="form">
           <h2>Öğrenci Girişi</h2>
           <label>Okul No <input id="loginSchoolNo" inputmode="numeric" autocomplete="username" required /></label>
-          <label>4 Haneli Şifre <input id="loginPin" inputmode="numeric" maxlength="4" autocomplete="current-password" /></label>
+          <label>Sifre <input id="loginPin" inputmode="numeric" minlength="4" autocomplete="current-password" /></label>
           <button class="primary" type="submit">Giriş Yap</button>
           <button id="forgotPasswordBtn" class="secondary" type="button">Şifremi Unuttum</button>
           <p class="muted">Bu cihazda oturum açık kaldığı sürece yeniden şifre istenmez.</p>
@@ -55,7 +55,7 @@
               <option value="2. sınıf">2. sınıf</option>
             </select>
           </label>
-          <label>4 Haneli Rakamsal Şifre <input id="pin" inputmode="numeric" maxlength="4" autocomplete="new-password" required /></label>
+          <label>En az 4 rakamli sifre <input id="pin" inputmode="numeric" minlength="4" autocomplete="new-password" required /></label>
           <button class="primary" type="submit">Başvuru Gönder</button>
         </form>
 
@@ -80,7 +80,13 @@
         </section>
 
         <section class="panel">
-          <h2>Yönetici ile Mesajlaşma</h2>
+          <div class="section-header compact-header">
+
+            <h2>Yonetici ile Mesajlasma</h2>
+
+            <button id="clearStudentMessagesBtn" class="danger small" type="button">Mesajlari Sil</button>
+
+          </div>
           <div id="studentMessages" class="chat"></div>
           <form id="studentMessageForm" class="message-compose">
             <textarea id="studentMessageBody" rows="2" placeholder="Mesaj yaz..." required></textarea>
@@ -137,7 +143,13 @@
               <div id="conversationList" class="list compact-list"></div>
             </div>
             <div class="panel chat-panel">
-              <h3 id="conversationTitle">Konuşma seç</h3>
+              <div class="section-header compact-header">
+
+                <h3 id="conversationTitle">Konusma sec</h3>
+
+                <button id="clearAdminConversationBtn" class="danger small hidden" type="button">Konusmayi Sil</button>
+
+              </div>
               <div id="adminConversationMessages" class="chat"></div>
               <form id="adminReplyForm" class="message-compose hidden">
                 <textarea id="adminReplyBody" rows="2" placeholder="Cevap yaz..." required></textarea>
@@ -156,8 +168,20 @@
             <button id="exportReportBtn" class="secondary" type="button">Word Raporu Al</button>
           </div>
           <div class="report-grid">
-            <div class="panel"><h3>Duyuru İstatistikleri</h3><div id="announcementStats" class="list"></div></div>
-            <div class="panel"><h3>İşlem Kayıtları</h3><div id="auditLogs" class="list"></div></div>
+            <div class="panel">
+              <div class="section-header compact-header">
+                <h3>Duyuru Istatistikleri</h3>
+                <button id="clearAnnouncementStatsBtn" class="danger small" type="button">Tumunu Sil</button>
+              </div>
+              <div id="announcementStats" class="list"></div>
+            </div>
+            <div class="panel">
+              <div class="section-header compact-header">
+                <h3>Islem Kayitlari</h3>
+                <button id="clearAuditLogsBtn" class="danger small" type="button">Tumunu Sil</button>
+              </div>
+              <div id="auditLogs" class="list"></div>
+            </div>
           </div>
         </section>
 
@@ -191,6 +215,6 @@
     </div>
 
     <div id="toast" class="toast hidden" role="status"></div>
-    <script type="module" src="app.js?v=20260625-clean-1"></script>
+    <script type="module" src="app.js?v=20260627-maintenance-1"></script>
   </body>
 </html>
