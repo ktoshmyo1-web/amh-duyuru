@@ -17,4 +17,6 @@ jobs:
       - run: npm run send-notifications
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          WEB_PUSH_PUBLIC_KEY: ${{ secrets.WEB_PUSH_PUBLIC_KEY }}
+          WEB_PUSH_PRIVATE_KEY: ${{ secrets.WEB_PUSH_PRIVATE_KEY }}
           SITE_URL: https://ktoshmyo1-web.github.io/amh-duyuru/
