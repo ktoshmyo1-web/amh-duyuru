@@ -8,4 +8,4 @@ export const firebaseConfig = {
   measurementId: "G-DTWZJZDHXY"
 };
 
-export const fcmVapidKey = "BIaWZOQL9Mudq5KBY5Q270UHu8ULuu1LLwsIugZjaqFFtNIBaklBZp5Zvo0XPK9vQOL2vtFtearbdOa2kRkn2RE";
+export const webPushPublicKey = "BBdIQo75WO5jUVJqQKahd9dOnFl919UOqHqJS8H5p_tgGZoWjnmpCDDvqpqix-1K3_xOeFuRVvPZ7gQzrXjapRk";

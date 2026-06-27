@@ -56,6 +56,8 @@ Repo ayarlarında secret adı aynen şöyle olmalı:
 
 ```text
 FIREBASE_SERVICE_ACCOUNT
+WEB_PUSH_PUBLIC_KEY
+WEB_PUSH_PRIVATE_KEY
 ```
 
 İçeriğine Firebase service account JSON dosyasının tamamı yapıştırılmalı.
@@ -70,7 +72,7 @@ Bu kural sadece test içindir. Canlı kullanımda güvenlik kurallarını sıkı
 
 1. Öğrenci hesabıyla giriş yap.
 2. `Bildirimleri Aç` butonuna bas ve izin ver.
-3. Firestore'da `notificationTokens` koleksiyonu oluşmalı.
+3. Firestore'da `pushSubscriptions` koleksiyonu olusmali.
 4. Yönetici yeni duyuru yayınlasın.
 5. GitHub > Actions > Send push notifications > Run workflow çalıştır.
 6. Workflow logunda `basarili` sayısı görünmeli.

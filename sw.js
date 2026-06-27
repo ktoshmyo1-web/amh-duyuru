@@ -1,4 +1,4 @@
-const CACHE_NAME = "amh-portal-clean-20260625-1";
+const CACHE_NAME = "amh-portal-clean-20260627-webpush-1";
 const ASSETS = [
   "./",
   "./index.html",
@@ -9,28 +9,18 @@ const ASSETS = [
   "./icon.svg"
 ];
 
-importScripts("https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js");
-importScripts("https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging-compat.js");
-
-firebase.initializeApp({
-  apiKey: "AIzaSyD36dbXpXZFtDy-OABPYWjWk8rJHuB_Ql4",
-  authDomain: "amh-duyuru.firebaseapp.com",
-  projectId: "amh-duyuru",
-  storageBucket: "amh-duyuru.firebasestorage.app",
-  messagingSenderId: "269251868398",
-  appId: "1:269251868398:web:4796efbae93b2eea2025ff",
-  measurementId: "G-DTWZJZDHXY"
-});
-
-firebase.messaging().onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || payload.data?.title || "Yeni duyuru";
-  const body = payload.notification?.body || payload.data?.body || "AMH Öğrenci Portalı'nda yeni duyuru var.";
-  self.registration.showNotification(title, {
-    body,
-    icon: "./icon.svg",
-    badge: "./icon.svg",
-    data: { url: payload.data?.url || "./" }
-  });
+self.addEventListener("push", (event) => {
+  const payload = event.data ? event.data.json() : {};
+  const title = payload.title || "Yeni duyuru";
+  const body = payload.body || "AMH ??renci Portal?'nda yeni duyuru var.";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "./icon.svg",
+      badge: "./icon.svg",
+      data: { url: payload.url || "./" }
+    })
+  );
 });
 
 self.addEventListener("install", (event) => {

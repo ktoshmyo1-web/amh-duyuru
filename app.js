@@ -1,4 +1,4 @@
-import { firebaseConfig, fcmVapidKey } from "./firebase-config.js";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js";
 
 const APP_VERSION = "20260625-clean-1";
 const DEFAULT_ADMIN_PASSWORD = "135746";
@@ -10,8 +10,6 @@ const state = {
   app: null,
   db: null,
   fs: null,
-  messaging: null,
-  messagingApi: null,
   adminPassword: DEFAULT_ADMIN_PASSWORD,
   currentStudent: null,
   selectedAdminTab: "students",
@@ -106,17 +104,9 @@ async function initFirebase() {
   try {
     const appApi = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
     const fs = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
-    const msgApi = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging.js");
     state.app = appApi.initializeApp(firebaseConfig);
     state.db = fs.getFirestore(state.app);
     state.fs = fs;
-    state.messagingApi = msgApi;
-    if (await msgApi.isSupported()) {
-      state.messaging = msgApi.getMessaging(state.app);
-      msgApi.onMessage(state.messaging, (payload) => {
-        toast(payload.notification?.title || payload.data?.title || "Yeni bildirim geldi.");
-      });
-    }
   } catch (error) {
     console.error(error);
     showNotice("Firebase bağlantısı kurulamadı. Config ve internet bağlantısını kontrol et.");
@@ -686,29 +676,35 @@ function openProfileModal() {
 }
 
 async function enableNotifications() {
-  if (!state.currentStudent) return toast("Önce öğrenci girişi yap.");
-  if (!state.messaging || !state.messagingApi) return toast("Bu tarayıcı web bildirimi desteklemiyor.");
-  if (!fcmVapidKey) return toast("Web Push anahtarı eksik.");
-  const permission = await Notification.requestPermission();
-  if (permission !== "granted") return toast("Bildirim izni verilmedi.");
-  const registration = await navigator.serviceWorker.register("./sw.js");
-  const token = await state.messagingApi.getToken(state.messaging, {
-    vapidKey: fcmVapidKey,
-    serviceWorkerRegistration: registration
-  });
-  if (!token) return toast("Bildirim tokenı alınamadı.");
-  const student = state.currentStudent;
-  await setDoc("notificationTokens", token, {
-    schoolNo: student.schoolNo,
-    studentName: fullName(student),
-    classYear: student.classYear || "",
-    userAgent: navigator.userAgent,
-    updatedAt: Date.now()
-  });
-  await addAudit("Bildirimler açıldı", student.schoolNo, fullName(student));
-  toast("Bildirimler açıldı.");
+  try {
+    if (!state.currentStudent) return toast("Once ogrenci girisi yap.");
+    if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      return toast("Bu tarayici web push bildirimini desteklemiyor.");
+    }
+    if (!webPushPublicKey) return toast("Web Push anahtari eksik.");
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return toast("Bildirim izni verilmedi.");
+    const registration = await navigator.serviceWorker.register("./sw.js");
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(webPushPublicKey)
+    });
+    const student = state.currentStudent;
+    await setDoc("pushSubscriptions", stableSubscriptionId(subscription), {
+      subscription: subscription.toJSON(),
+      schoolNo: student.schoolNo,
+      studentName: fullName(student),
+      classYear: student.classYear || "",
+      userAgent: navigator.userAgent,
+      updatedAt: Date.now()
+    });
+    await addAudit("Bildirimler acildi", student.schoolNo, fullName(student));
+    toast("Bildirimler acildi.");
+  } catch (error) {
+    console.error(error);
+    toast(`Bildirim acilamadi: ${error.message || "Hata"}`);
+  }
 }
-
 async function loadAdminPassword() {
   const settings = await getDocData("settings", "admin");
   state.adminPassword = settings?.password || DEFAULT_ADMIN_PASSWORD;
@@ -895,6 +891,17 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function stableSubscriptionId(subscription) {
+  return btoa(subscription.endpoint).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
 }
 
 window.__AMH_PORTAL_VERSION__ = APP_VERSION;
