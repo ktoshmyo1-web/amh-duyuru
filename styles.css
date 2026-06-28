@@ -105,8 +105,14 @@ label { display: grid; gap: 7px; font-weight: 700; color: #344054; }
   .bubble { max-width: 92%; }
 }
 
-.info-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: 12px; overflow-x: auto; padding: 4px 2px 10px; scroll-snap-type: x proximity; }
-.info-card { min-height: 118px; border: 1px solid var(--line); border-left: 5px solid var(--brand); border-radius: 8px; padding: 13px; background: #fbfcfd; scroll-snap-align: start; }
+.info-strip { display: block; overflow: hidden; padding: 2px 0; }
+.info-card { min-height: 118px; border: 1px solid var(--line); border-left: 5px solid var(--brand); border-radius: 8px; padding: 13px; background: #fbfcfd; animation: cardFade .28s ease; }
 .info-card h3 { font-size: 17px; margin-bottom: 6px; }
 .info-card p { margin: 0; color: #344054; }
-.student-contact-panel .primary { display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
+.student-contact-panel .primary { display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: auto; }
+
+.student-summary .secondary, .student-summary .call-button { padding: 10px 12px; font-size: 14px; }
+.info-dots { display: flex; gap: 5px; margin-top: 12px; }
+.info-dots span { width: 7px; height: 7px; border-radius: 999px; background: var(--line); }
+.info-dots span.active { background: var(--brand); }
+@keyframes cardFade { from { opacity: .35; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }

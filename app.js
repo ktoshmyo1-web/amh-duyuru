@@ -1,6 +1,6 @@
 import { firebaseConfig, webPushPublicKey } from "./firebase-config.js";
 
-const APP_VERSION = "20260627-enhancements-1";
+const APP_VERSION = "20260628-admin-fix-1";
 const DEFAULT_ADMIN_PASSWORD = "135746";
 const RESET_PIN = "1234";
 const STUDENT_SESSION_KEY = "amh_v2_student_session";
@@ -22,6 +22,8 @@ const state = {
   passwordRequests: [],
   auditLogs: [],
   infoCards: [],
+  infoCardIndex: 0,
+  infoCardTimer: null,
   unsubscribers: []
 };
 
@@ -140,6 +142,7 @@ function bindEvents() {
   els.clearAuditLogsBtn?.addEventListener("click", clearAuditLogs);
   els.adminPasswordForm.addEventListener("submit", handleAdminPasswordChange);
   els.newInfoCardBtn?.addEventListener("click", () => openInfoCardEditor());
+  els.adminView.addEventListener("click", handleAdminPanelClick);
   els.modalCloseBtn.addEventListener("click", closeModal);
   els.modalBackdrop.addEventListener("click", (event) => {
     if (event.target === els.modalBackdrop) closeModal();
@@ -157,6 +160,17 @@ function bindEvents() {
   });
 }
 
+function handleAdminPanelClick(event) {
+  const announcementButton = event.target.closest("[data-announcement-action]");
+  if (announcementButton) {
+    handleAnnouncementAction(announcementButton.dataset.announcementAction, announcementButton.dataset.id);
+    return;
+  }
+  const infoCardButton = event.target.closest("[data-info-card-action]");
+  if (infoCardButton) {
+    handleInfoCardAction(infoCardButton.dataset.infoCardAction, infoCardButton.dataset.id);
+  }
+}
 function showAuth(tab) {
   cleanupListeners();
   state.currentStudent = null;
@@ -272,14 +286,22 @@ function openAdminPanel() {
 }
 
 function renderAdminAll() {
-  renderBadges();
-  renderStudents();
-  renderAdminAnnouncements();
-  renderConversations();
-  renderConversationMessages();
-  renderPasswordRequests();
-  renderReports();
-  renderInfoCardsAdmin();
+  safeRender(renderBadges, "badges");
+  safeRender(renderStudents, "students");
+  safeRender(renderAdminAnnouncements, "announcements");
+  safeRender(renderConversations, "conversations");
+  safeRender(renderConversationMessages, "conversationMessages");
+  safeRender(renderPasswordRequests, "passwordRequests");
+  safeRender(renderReports, "reports");
+  safeRender(renderInfoCardsAdmin, "infoCards");
+}
+
+function safeRender(fn, name) {
+  try {
+    fn();
+  } catch (error) {
+    console.error(`Render hatasi: ${name}`, error);
+  }
 }
 
 function switchAdminTab(tab) {
@@ -404,9 +426,6 @@ function renderAdminAnnouncements() {
         </div>
       </article>
     `;
-  });
-  $('[data-announcement-action]').forEach((button) => {
-    button.addEventListener('click', () => handleAnnouncementAction(button.dataset.announcementAction, button.dataset.id));
   });
 }
 
@@ -568,24 +587,24 @@ function renderStudentMessages() {
 
 function renderConversations() {
   const conversations = groupConversations();
-  renderList(els.conversationList, conversations, "Konuşma yok.", (conversation) => `
+  renderList(els.conversationList, conversations, "Konusma yok.", (conversation) => `
     <article class="item clickable" data-conversation="${escapeHtml(conversation.id)}">
       <div class="item-header">
-        <h3>${escapeHtml(conversation.studentName)}</h3>
+        <h3>${escapeHtml(conversation.studentName || "Isimsiz")}</h3>
         ${conversation.unread ? `<span class="badge">${conversation.unread}</span>` : ""}
       </div>
-      <p>Okul No: ${escapeHtml(conversation.id)}</p>
+      <p>Okul No: ${escapeHtml(conversation.schoolNo || "Yok")}</p>
       <p class="muted">${escapeHtml(conversation.lastMessage || "")}</p>
     </article>
   `);
-  $$("[data-conversation]").forEach((item) => {
+  $(`[data-conversation]`).forEach((item) => {
     item.addEventListener("click", () => openConversation(item.dataset.conversation));
   });
 }
 
 async function openConversation(id) {
   state.selectedConversationId = id;
-  const unread = state.messages.filter((message) => message.conversationId === id && message.sender === "student" && !message.readByAdmin);
+  const unread = state.messages.filter((message) => messageConversationKey(message) === id && message.sender === "student" && !message.readByAdmin);
   await Promise.all(unread.map((message) => updateDoc("messages", message.id, { readByAdmin: true })));
   renderConversationMessages();
   switchAdminTab("messages");
@@ -600,8 +619,10 @@ function renderConversationMessages() {
     els.clearAdminConversationBtn?.classList.add("hidden");
     return;
   }
-  const items = state.messages.filter((message) => message.conversationId === id);
-  const student = state.students.find((item) => item.schoolNo === id);
+  const items = state.messages.filter((message) => messageConversationKey(message) === id);
+  const firstMessage = items[0] || {};
+  const schoolNo = firstMessage.schoolNo || firstMessage.conversationId || id;
+  const student = state.students.find((item) => item.schoolNo === schoolNo);
   els.conversationTitle.textContent = student ? fullName(student) : (items[0]?.studentName || id);
   renderChat(els.adminConversationMessages, items);
   els.adminReplyForm.classList.remove("hidden");
@@ -659,7 +680,7 @@ async function clearStudentMessages() {
 async function clearAdminConversation() {
   const id = state.selectedConversationId;
   if (!id) return toast("Once konusma sec.");
-  const items = state.messages.filter((message) => message.conversationId === id);
+  const items = state.messages.filter((message) => messageConversationKey(message) === id);
   if (!items.length) return toast("Silinecek mesaj yok.");
   if (!confirm("Secili konusmadaki tum mesajlar silinsin mi?")) return;
   await deleteMany("messages", items);
@@ -753,12 +774,27 @@ function renderStudentInfoCards() {
     { title: "Acil durumda ara", body: "Acil Ulas butonu telefon arama ekranini acar." }
   ];
   const cards = active.length ? active : defaults;
-  els.studentInfoCards.innerHTML = cards.map((card) => `
+  if (state.infoCardIndex >= cards.length) state.infoCardIndex = 0;
+  const card = cards[state.infoCardIndex] || cards[0];
+  const dots = cards.map((_, index) => `<span class="${index === state.infoCardIndex ? "active" : ""}"></span>`).join("");
+  els.studentInfoCards.innerHTML = `
     <article class="info-card">
       <h3>${escapeHtml(card.title)}</h3>
       <p>${escapeHtml(card.body)}</p>
+      <div class="info-dots">${dots}</div>
     </article>
-  `).join("");
+  `;
+  startInfoCardRotation(cards.length);
+}
+
+function startInfoCardRotation(cardCount) {
+  if (state.infoCardTimer) window.clearInterval(state.infoCardTimer);
+  state.infoCardTimer = null;
+  if (cardCount <= 1) return;
+  state.infoCardTimer = window.setInterval(() => {
+    state.infoCardIndex = (state.infoCardIndex + 1) % cardCount;
+    renderStudentInfoCards();
+  }, 3000);
 }
 
 function renderInfoCardsAdmin() {
@@ -774,9 +810,6 @@ function renderInfoCardsAdmin() {
       </div>
     </article>
   `);
-  $('[data-info-card-action]').forEach((button) => {
-    button.addEventListener('click', () => handleInfoCardAction(button.dataset.infoCardAction, button.dataset.id));
-  });
 }
 
 function openInfoCardEditor(card = null) {
@@ -913,22 +946,29 @@ async function addAudit(action, actorId, actorName, detail = "") {
 function groupConversations() {
   const map = new Map();
   state.messages.forEach((message) => {
-    const current = map.get(message.conversationId) || {
-      id: message.conversationId,
-      studentName: message.studentName,
+    const key = messageConversationKey(message);
+    const current = map.get(key) || {
+      id: key,
+      schoolNo: message.schoolNo || message.conversationId || "",
+      studentName: message.studentName || "Isimsiz",
       lastMessage: "",
       updatedAt: 0,
       unread: 0
     };
-    if (message.createdAt >= current.updatedAt) {
-      current.lastMessage = message.body;
-      current.updatedAt = message.createdAt;
-      current.studentName = message.studentName;
+    if ((message.createdAt || 0) >= current.updatedAt) {
+      current.lastMessage = message.body || "";
+      current.updatedAt = message.createdAt || 0;
+      current.studentName = message.studentName || current.studentName;
+      current.schoolNo = message.schoolNo || message.conversationId || current.schoolNo;
     }
     if (message.sender === "student" && !message.readByAdmin) current.unread += 1;
-    map.set(message.conversationId, current);
+    map.set(key, current);
   });
   return [...map.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+function messageConversationKey(message) {
+  return message.conversationId || message.schoolNo || `message_${message.id}`;
 }
 
 function eligibleStudentsFor(announcement) {
@@ -986,6 +1026,10 @@ function watch(collectionName, callback) {
 function cleanupListeners() {
   state.unsubscribers.forEach((unsubscribe) => unsubscribe());
   state.unsubscribers = [];
+  if (state.infoCardTimer) {
+    window.clearInterval(state.infoCardTimer);
+    state.infoCardTimer = null;
+  }
 }
 
 function logout() {
