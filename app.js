@@ -1,6 +1,6 @@
 import { firebaseConfig, webPushPublicKey } from "./firebase-config.js";
 
-const APP_VERSION = "20260628-card-move-1";
+const APP_VERSION = "20260628-message-fix-1";
 const DEFAULT_ADMIN_PASSWORD = "135746";
 const RESET_PIN = "1234";
 const STUDENT_SESSION_KEY = "amh_v2_student_session";
@@ -598,12 +598,13 @@ function renderConversations() {
       <p class="muted">${escapeHtml(conversation.lastMessage || "")}</p>
     </article>
   `);
-  $(`[data-conversation]`).forEach((item) => {
+  els.conversationList.querySelectorAll("[data-conversation]").forEach((item) => {
     item.addEventListener("click", () => openConversation(item.dataset.conversation));
   });
 }
 
 async function openConversation(id) {
+  if (!id) return;
   state.selectedConversationId = id;
   const unread = state.messages.filter((message) => messageConversationKey(message) === id && message.sender === "student" && !message.readByAdmin);
   await Promise.all(unread.map((message) => updateDoc("messages", message.id, { readByAdmin: true })));
@@ -621,10 +622,8 @@ function renderConversationMessages() {
     return;
   }
   const items = state.messages.filter((message) => messageConversationKey(message) === id);
-  const firstMessage = items[0] || {};
-  const schoolNo = firstMessage.schoolNo || firstMessage.conversationId || id;
-  const student = state.students.find((item) => item.schoolNo === schoolNo);
-  els.conversationTitle.textContent = student ? fullName(student) : (items[0]?.studentName || id);
+  const meta = conversationMeta(id, items);
+  els.conversationTitle.textContent = meta.student ? fullName(meta.student) : (meta.studentName || id);
   renderChat(els.adminConversationMessages, items);
   els.adminReplyForm.classList.remove("hidden");
   els.clearAdminConversationBtn?.classList.remove("hidden");
@@ -635,11 +634,13 @@ async function handleAdminReply(event) {
   const id = state.selectedConversationId;
   const body = clean(els.adminReplyBody.value);
   if (!id || !body) return;
-  const student = state.students.find((item) => item.schoolNo === id);
+  const items = state.messages.filter((message) => messageConversationKey(message) === id);
+  const meta = conversationMeta(id, items);
+  const schoolNo = meta.schoolNo || id;
   await addDoc("messages", {
     conversationId: id,
-    schoolNo: id,
-    studentName: student ? fullName(student) : id,
+    schoolNo,
+    studentName: meta.student ? fullName(meta.student) : (meta.studentName || schoolNo),
     sender: "admin",
     body,
     readByAdmin: true,
@@ -668,7 +669,7 @@ function renderChatHtml(items) {
 
 async function clearStudentMessages() {
   if (!state.currentStudent) return;
-  const items = state.messages.filter((message) => message.conversationId === state.currentStudent.schoolNo);
+  const items = state.messages.filter((message) => messageConversationKey(message) === state.currentStudent.schoolNo);
   if (!items.length) return toast("Silinecek mesaj yok.");
   if (!confirm("Bu konusmadaki tum mesajlar silinsin mi?")) return;
   await deleteMany("messages", items);
@@ -984,6 +985,17 @@ function groupConversations() {
 
 function messageConversationKey(message) {
   return message.conversationId || message.schoolNo || `message_${message.id}`;
+}
+
+function conversationMeta(id, items = []) {
+  const firstMessage = items[0] || {};
+  const schoolNo = firstMessage.schoolNo || firstMessage.conversationId || id;
+  const student = state.students.find((item) => item.schoolNo === schoolNo);
+  return {
+    schoolNo,
+    student,
+    studentName: firstMessage.studentName || (student ? fullName(student) : "")
+  };
 }
 
 function eligibleStudentsFor(announcement) {
