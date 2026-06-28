@@ -1,6 +1,6 @@
 import { firebaseConfig, webPushPublicKey } from "./firebase-config.js";
 
-const APP_VERSION = "20260628-admin-fix-1";
+const APP_VERSION = "20260628-card-move-1";
 const DEFAULT_ADMIN_PASSWORD = "135746";
 const RESET_PIN = "1234";
 const STUDENT_SESSION_KEY = "amh_v2_student_session";
@@ -134,6 +134,7 @@ function bindEvents() {
   els.profileBtn.addEventListener("click", openProfileModal);
   els.enableNotificationsBtn.addEventListener("click", enableNotifications);
   els.openStudentMessagesBtn?.addEventListener("click", openStudentMessagesModal);
+  els.studentInfoCards?.addEventListener("click", handleStudentInfoCardClick);
   els.newAnnouncementBtn.addEventListener("click", () => openAnnouncementEditor());
   els.adminReplyForm.addEventListener("submit", handleAdminReply);
   els.clearAdminConversationBtn?.addEventListener("click", clearAdminConversation);
@@ -765,20 +766,34 @@ async function clearAuditLogs() {
 }
 
 
-function renderStudentInfoCards() {
-  if (!els.studentInfoCards) return;
+function handleStudentInfoCardClick(event) {
+  const cardEl = event.target.closest("[data-info-card-open]");
+  if (!cardEl) return;
+  const cards = activeInfoCards();
+  const card = cards[Number(cardEl.dataset.infoCardOpen) || 0];
+  if (!card) return;
+  openModal(`
+    <h2>${escapeHtml(card.title)}</h2>
+    <p>${escapeHtml(card.body)}</p>
+  `);
+}
+
+function activeInfoCards() {
   const active = state.infoCards.filter((card) => card.active !== false).sort(byOrder);
-  const defaults = [
+  return active.length ? active : [
     { title: "Duyurulari takip et", body: "Yeni duyurular icin bildirimleri acik tut." },
     { title: "Okudum isaretle", body: "Duyurunun icine girip Okudum butonuna basmayi unutma." },
     { title: "Acil durumda ara", body: "Acil Ulas butonu telefon arama ekranini acar." }
   ];
-  const cards = active.length ? active : defaults;
+}
+function renderStudentInfoCards() {
+  if (!els.studentInfoCards) return;
+  const cards = activeInfoCards();
   if (state.infoCardIndex >= cards.length) state.infoCardIndex = 0;
   const card = cards[state.infoCardIndex] || cards[0];
   const dots = cards.map((_, index) => `<span class="${index === state.infoCardIndex ? "active" : ""}"></span>`).join("");
   els.studentInfoCards.innerHTML = `
-    <article class="info-card">
+    <article class="info-card" data-info-card-open="${state.infoCardIndex}">
       <h3>${escapeHtml(card.title)}</h3>
       <p>${escapeHtml(card.body)}</p>
       <div class="info-dots">${dots}</div>
@@ -794,7 +809,7 @@ function startInfoCardRotation(cardCount) {
   state.infoCardTimer = window.setInterval(() => {
     state.infoCardIndex = (state.infoCardIndex + 1) % cardCount;
     renderStudentInfoCards();
-  }, 3000);
+  }, 5000);
 }
 
 function renderInfoCardsAdmin() {
