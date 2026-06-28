@@ -124,3 +124,20 @@ label { display: grid; gap: 7px; font-weight: 700; color: #344054; }
 .info-dots span { width: 7px; height: 7px; border-radius: 999px; background: var(--line); }
 .info-dots span.active { background: var(--brand); }
 @keyframes cardFade { from { opacity: .35; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 680px) {
+  .student-contact-panel .section-header.compact-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .student-contact-panel .section-header.compact-header h2 {
+    width: 100%;
+    text-align: center;
+  }
+  .student-contact-panel .primary {
+    width: min(100%, 260px);
+    margin-inline: auto;
+  }
+}
