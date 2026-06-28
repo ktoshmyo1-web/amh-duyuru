@@ -108,6 +108,8 @@ label { display: grid; gap: 7px; font-weight: 700; color: #344054; }
   .tabs, .auth-tabs, .message-compose { grid-template-columns: 1fr; }
   .section-header { display: grid; }
   .choice-grid { grid-template-columns: 1fr; }
+  .student-contact-panel .compact-header { justify-items: center; text-align: center; }
+  .student-contact-panel .primary { width: min(100%, 260px); }
   .bubble { max-width: 92%; }
 }
 
