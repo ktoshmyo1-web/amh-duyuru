@@ -5,16 +5,27 @@ on:
   schedule:
     - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
 
+concurrency:
+  group: send-push-notifications
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
 jobs:
   send:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm install
-      - run: npm run send-notifications
+          cache: npm
+      - name: Install dependencies
+        run: npm ci || npm install
+      - name: Send pending notifications
+        run: npm run send-notifications
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           WEB_PUSH_PUBLIC_KEY: ${{ secrets.WEB_PUSH_PUBLIC_KEY }}
