@@ -119,16 +119,31 @@
               <h2>Duyurular</h2>
               <p class="muted">Duyuru oluştur, düzenle, sil ve okunma durumunu takip et.</p>
             </div>
-            <button id="newAnnouncementBtn" class="primary" type="button">Yeni Duyuru</button>
           </div>
-          <div class="panel info-admin-panel">
+          <div id="announcementChoice" class="choice-grid">
+            <button id="openAnnouncementsPanelBtn" class="choice-card" type="button">
+              <strong>Duyurular</strong>
+              <span>Yeni duyuru olustur, duzenle, sil ve okunma durumunu takip et.</span>
+            </button>
+            <button id="openInfoCardsPanelBtn" class="choice-card" type="button">
+              <strong>Bilgi Kartlari</strong>
+              <span>Ogrenci ekranindaki kayan bilgi kartlarini yonet.</span>
+            </button>
+          </div>
+          <div id="announcementsPanel" class="hidden">
+            <div class="section-header compact-header">
+              <h3>Duyurular</h3>
+              <button id="newAnnouncementBtn" class="primary small" type="button">Yeni Duyuru</button>
+            </div>
+            <div id="announcementsAdminList" class="list"></div>
+          </div>
+          <div id="infoCardsPanel" class="hidden">
             <div class="section-header compact-header">
               <h3>Bilgi Kartlari</h3>
               <button id="newInfoCardBtn" class="primary small" type="button">Yeni Kart</button>
             </div>
             <div id="infoCardsAdminList" class="list"></div>
           </div>
-          <div id="announcementsAdminList" class="list"></div>
         </section>
 
         <section id="adminMessages" class="admin-section hidden">
@@ -216,6 +231,6 @@
     </div>
 
     <div id="toast" class="toast hidden" role="status"></div>
-    <script type="module" src="app.js?v=20260628-message-fix-1"></script>
+    <script type="module" src="app.js?v=20260628-announcement-split-1"></script>
   </body>
 </html>

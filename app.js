@@ -1,6 +1,6 @@
 import { firebaseConfig, webPushPublicKey } from "./firebase-config.js";
 
-const APP_VERSION = "20260628-message-fix-1";
+const APP_VERSION = "20260628-announcement-split-1";
 const DEFAULT_ADMIN_PASSWORD = "135746";
 const RESET_PIN = "1234";
 const STUDENT_SESSION_KEY = "amh_v2_student_session";
@@ -13,6 +13,7 @@ const state = {
   adminPassword: DEFAULT_ADMIN_PASSWORD,
   currentStudent: null,
   selectedAdminTab: "students",
+  selectedAnnouncementPanel: null,
   studentFilter: "pending",
   selectedConversationId: null,
   students: [],
@@ -66,6 +67,11 @@ const els = {
   studentsList: $("#studentsList"),
   newAnnouncementBtn: $("#newAnnouncementBtn"),
   announcementsAdminList: $("#announcementsAdminList"),
+  announcementChoice: $("#announcementChoice"),
+  announcementsPanel: $("#announcementsPanel"),
+  infoCardsPanel: $("#infoCardsPanel"),
+  openAnnouncementsPanelBtn: $("#openAnnouncementsPanelBtn"),
+  openInfoCardsPanelBtn: $("#openInfoCardsPanelBtn"),
   conversationList: $("#conversationList"),
   conversationTitle: $("#conversationTitle"),
   adminConversationMessages: $("#adminConversationMessages"),
@@ -135,7 +141,9 @@ function bindEvents() {
   els.enableNotificationsBtn.addEventListener("click", enableNotifications);
   els.openStudentMessagesBtn?.addEventListener("click", openStudentMessagesModal);
   els.studentInfoCards?.addEventListener("click", handleStudentInfoCardClick);
-  els.newAnnouncementBtn.addEventListener("click", () => openAnnouncementEditor());
+  els.newAnnouncementBtn?.addEventListener("click", () => openAnnouncementEditor());
+  els.openAnnouncementsPanelBtn?.addEventListener("click", () => showAnnouncementPanel("announcements"));
+  els.openInfoCardsPanelBtn?.addEventListener("click", () => showAnnouncementPanel("infoCards"));
   els.adminReplyForm.addEventListener("submit", handleAdminReply);
   els.clearAdminConversationBtn?.addEventListener("click", clearAdminConversation);
   els.exportReportBtn.addEventListener("click", exportWordReport);
@@ -150,7 +158,10 @@ function bindEvents() {
   });
 
   $$(".admin-tab").forEach((button) => {
-    button.addEventListener("click", () => switchAdminTab(button.dataset.adminTab));
+    button.addEventListener("click", () => {
+      if (button.dataset.adminTab === "announcements") state.selectedAnnouncementPanel = null;
+      switchAdminTab(button.dataset.adminTab);
+    });
   });
   $$("[data-student-filter]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -289,6 +300,7 @@ function openAdminPanel() {
 function renderAdminAll() {
   safeRender(renderBadges, "badges");
   safeRender(renderStudents, "students");
+  safeRender(renderAnnouncementPanels, "announcementPanels");
   safeRender(renderAdminAnnouncements, "announcements");
   safeRender(renderConversations, "conversations");
   safeRender(renderConversationMessages, "conversationMessages");
@@ -316,6 +328,20 @@ function switchAdminTab(tab) {
     settings: $("#adminSettings")
   };
   Object.entries(map).forEach(([key, section]) => section.classList.toggle("hidden", key !== tab));
+  if (tab === "announcements") renderAnnouncementPanels();
+}
+
+function showAnnouncementPanel(panel) {
+  state.selectedAnnouncementPanel = panel;
+  renderAnnouncementPanels();
+}
+
+function renderAnnouncementPanels() {
+  if (!els.announcementChoice || !els.announcementsPanel || !els.infoCardsPanel) return;
+  const panel = state.selectedAnnouncementPanel;
+  els.announcementChoice.classList.toggle("hidden", Boolean(panel));
+  els.announcementsPanel.classList.toggle("hidden", panel !== "announcements");
+  els.infoCardsPanel.classList.toggle("hidden", panel !== "infoCards");
 }
 
 function renderBadges() {
