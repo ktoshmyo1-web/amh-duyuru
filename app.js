@@ -1,6 +1,6 @@
 import { firebaseConfig, webPushPublicKey } from "./firebase-config.js";
 
-const APP_VERSION = "20260628-announcement-split-1";
+const APP_VERSION = "20260629-forgot-password-1";
 const DEFAULT_ADMIN_PASSWORD = "135746";
 const RESET_PIN = "1234";
 const STUDENT_SESSION_KEY = "amh_v2_student_session";
@@ -730,19 +730,46 @@ function renderPasswordRequests() {
   $$("[data-reset-request]").forEach((button) => button.addEventListener("click", () => resolvePasswordRequest(button.dataset.resetRequest)));
 }
 
-async function handleForgotPassword() {
+function handleForgotPassword() {
   const schoolNo = digits(els.loginSchoolNo.value);
-  if (!schoolNo) return toast("Önce okul numaranı yaz.");
+  openModal(`
+    <h2>Sifremi Unuttum</h2>
+    <p class="muted">Bilgilerini gonder. Yonetici onaylarsa sifren 1234 olarak sifirlanir.</p>
+    <form id="forgotPasswordForm" class="form">
+      <label>Okul No <input id="forgotSchoolNo" inputmode="numeric" value="${escapeHtml(schoolNo)}" required /></label>
+      <label>Isim <input id="forgotFirstName" autocomplete="given-name" required /></label>
+      <label>Soyisim <input id="forgotLastName" autocomplete="family-name" required /></label>
+      <button class="primary" type="submit">Talep Gonder</button>
+    </form>
+  `);
+  $("#forgotPasswordForm").addEventListener("submit", submitForgotPassword);
+}
+
+async function submitForgotPassword(event) {
+  event.preventDefault();
+  const schoolNo = digits($("#forgotSchoolNo").value);
+  const firstName = clean($("#forgotFirstName").value);
+  const lastName = clean($("#forgotLastName").value);
+  if (!schoolNo || !firstName || !lastName) return toast("Tum alanlari doldur.");
   const student = await getStudent(schoolNo);
-  if (!student) return toast("Bu okul no ile kayıt bulunamadı.");
+  if (!student) return toast("Bu okul no ile kayit bulunamadi.");
+  if (!sameText(student.firstName, firstName) || !sameText(student.lastName, lastName)) {
+    return toast("Ad, soyad veya okul no eslesmedi.");
+  }
+  const existing = await getOpenPasswordRequest(schoolNo);
+  if (existing) {
+    closeModal();
+    return toast("Bu okul no icin acik talep zaten var.");
+  }
   await addDoc("passwordRequests", {
     schoolNo,
     studentName: fullName(student),
     status: "open",
     createdAt: Date.now()
   });
-  await addAudit("Şifre sıfırlama talebi", schoolNo, fullName(student));
-  toast("Talep yönetici paneline düştü.");
+  await addAudit("Sifre sifirlama talebi", schoolNo, fullName(student));
+  closeModal();
+  toast("Talep yonetici paneline dustu.");
 }
 
 async function resolvePasswordRequest(id) {
@@ -1013,6 +1040,17 @@ function messageConversationKey(message) {
   return message.conversationId || message.schoolNo || `message_${message.id}`;
 }
 
+async function getOpenPasswordRequest(schoolNo) {
+  const { collection, getDocs, query, where } = state.fs;
+  const q = query(
+    collection(state.db, "passwordRequests"),
+    where("schoolNo", "==", schoolNo),
+    where("status", "==", "open")
+  );
+  const snap = await getDocs(q);
+  return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+}
+
 function conversationMeta(id, items = []) {
   const firstMessage = items[0] || {};
   const schoolNo = firstMessage.schoolNo || firstMessage.conversationId || id;
@@ -1169,6 +1207,7 @@ function toast(message) {
 function clean(value) { return String(value || "").trim().replace(/\s+/g, " "); }
 function digits(value) { return String(value || "").replace(/\D/g, ""); }
 function isPin(value) { return /^\d{4,}$/.test(value); }
+function sameText(left, right) { return clean(left).toLocaleLowerCase("tr-TR") === clean(right).toLocaleLowerCase("tr-TR"); }
 function fullName(student) { return `${student.firstName || ""} ${student.lastName || ""}`.trim(); }
 function byDateDesc(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); }
 function byDateAsc(a, b) { return (a.createdAt || 0) - (b.createdAt || 0); }
