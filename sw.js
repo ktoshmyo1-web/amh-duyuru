@@ -1,4 +1,4 @@
-const CACHE_NAME = "amh-portal-clean-20260627-webpush-1";
+const CACHE_NAME = "amh-portal-clean-20260629-icon-1";
 const ASSETS = [
   "./",
   "./index.html",
@@ -6,7 +6,10 @@ const ASSETS = [
   "./app.js",
   "./firebase-config.js",
   "./manifest.webmanifest",
-  "./icon.svg"
+  "./icon.svg",
+  "./icon-192.png",
+  "./icon-512.png",
+  "./apple-touch-icon.png"
 ];
 
 self.addEventListener("push", (event) => {
