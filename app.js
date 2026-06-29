@@ -1,6 +1,6 @@
 import { firebaseConfig, webPushPublicKey } from "./firebase-config.js";
 
-const APP_VERSION = "20260629-forgot-password-1";
+const APP_VERSION = "20260629-password-badge-1";
 const DEFAULT_ADMIN_PASSWORD = "135746";
 const RESET_PIN = "1234";
 const STUDENT_SESSION_KEY = "amh_v2_student_session";
@@ -64,6 +64,7 @@ const els = {
   studentMessageBadge: $("#studentMessageBadge"),
   pendingBadge: $("#pendingBadge"),
   messageBadge: $("#messageBadge"),
+  settingsBadge: $("#settingsBadge"),
   studentsList: $("#studentsList"),
   newAnnouncementBtn: $("#newAnnouncementBtn"),
   announcementsAdminList: $("#announcementsAdminList"),
@@ -86,6 +87,7 @@ const els = {
   adminPasswordForm: $("#adminPasswordForm"),
   adminNewPassword: $("#adminNewPassword"),
   passwordRequestsList: $("#passwordRequestsList"),
+  clearPasswordRequestsBtn: $("#clearPasswordRequestsBtn"),
   newInfoCardBtn: $("#newInfoCardBtn"),
   infoCardsAdminList: $("#infoCardsAdminList"),
   modalBackdrop: $("#modalBackdrop"),
@@ -149,6 +151,7 @@ function bindEvents() {
   els.exportReportBtn.addEventListener("click", exportWordReport);
   els.clearAnnouncementStatsBtn?.addEventListener("click", clearAnnouncementStats);
   els.clearAuditLogsBtn?.addEventListener("click", clearAuditLogs);
+  els.clearPasswordRequestsBtn?.addEventListener("click", clearPasswordRequests);
   els.adminPasswordForm.addEventListener("submit", handleAdminPasswordChange);
   els.newInfoCardBtn?.addEventListener("click", () => openInfoCardEditor());
   els.adminView.addEventListener("click", handleAdminPanelClick);
@@ -347,8 +350,10 @@ function renderAnnouncementPanels() {
 function renderBadges() {
   const pending = state.students.filter((student) => student.status === "pending").length;
   const unread = state.messages.filter((message) => message.sender === "student" && !message.readByAdmin).length;
+  const openPasswordRequests = state.passwordRequests.filter((request) => request.status === "open").length;
   setBadge(els.pendingBadge, pending);
   setBadge(els.messageBadge, unread);
+  setBadge(els.settingsBadge, openPasswordRequests);
 }
 
 function renderStudentHeader() {
@@ -779,6 +784,15 @@ async function resolvePasswordRequest(id) {
   await updateDoc("passwordRequests", id, { status: "done", resolvedAt: Date.now() });
   await addAudit("Şifre talebi sıfırlandı", request.schoolNo, "Yönetici");
   toast("Şifre 1234 olarak sıfırlandı.");
+}
+
+async function clearPasswordRequests() {
+  if (!state.passwordRequests.length) return toast("Silinecek sifre talebi yok.");
+  if (!confirm("Tum sifre sifirlama talepleri silinsin mi?")) return;
+  const count = state.passwordRequests.length;
+  await deleteMany("passwordRequests", state.passwordRequests);
+  await addAudit("Sifre talepleri temizlendi", "admin", "Yonetici", count + " kayit silindi");
+  toast("Sifre talepleri temizlendi.");
 }
 
 function renderReports() {

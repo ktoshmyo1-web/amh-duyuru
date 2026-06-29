@@ -95,7 +95,7 @@
           <button class="admin-tab" data-admin-tab="announcements" type="button">Duyurular</button>
           <button class="admin-tab" data-admin-tab="messages" type="button">Mesajlar <span id="messageBadge" class="badge hidden">0</span></button>
           <button class="admin-tab" data-admin-tab="reports" type="button">Raporlar</button>
-          <button class="admin-tab" data-admin-tab="settings" type="button">Ayarlar</button>
+          <button class="admin-tab" data-admin-tab="settings" type="button">Ayarlar <span id="settingsBadge" class="badge hidden">0</span></button>
         </nav>
 
         <section id="adminStudents" class="admin-section">
@@ -216,6 +216,7 @@
             </form>
             <div class="panel">
               <h3>Şifre Sıfırlama Talepleri</h3>
+              <button id="clearPasswordRequestsBtn" class="danger small" type="button">Tumunu Temizle</button>
               <div id="passwordRequestsList" class="list"></div>
             </div>
           </div>
@@ -231,6 +232,6 @@
     </div>
 
     <div id="toast" class="toast hidden" role="status"></div>
-    <script type="module" src="app.js?v=20260629-forgot-password-1"></script>
+    <script type="module" src="app.js?v=20260629-password-badge-1"></script>
   </body>
 </html>
